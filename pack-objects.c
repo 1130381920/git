@@ -88,6 +88,23 @@ struct object_entry *packlist_find(struct packing_data *pdata,
 	return &pdata->objects[pdata->index[i] - 1];
 }
 
+uint32_t *new_delta_size_array(struct packing_data *pack)
+{
+	uint32_t *delta_size;
+	uint32_t i;
+
+	/*
+	 * nr_alloc, not nr_objects to align with realloc() strategy in
+	 * packlist_alloc()
+	 */
+	ALLOC_ARRAY(delta_size, pack->nr_alloc);
+
+	for (i = 0; i < pack->nr_objects; i++)
+		delta_size[i] = pack->objects[i].delta_size_;
+
+	return delta_size;
+}
+
 static void prepare_in_pack_by_idx(struct packing_data *pdata)
 {
 	struct packed_git **mapping, *p;
@@ -146,6 +163,8 @@ void prepare_packing_data(struct packing_data *pdata)
 
 	pdata->oe_size_limit = git_env_ulong("GIT_TEST_OE_SIZE",
 					     1U << OE_SIZE_BITS);
+	pdata->oe_delta_size_limit = git_env_ulong("GIT_TEST_OE_DELTA_SIZE",
+						   1U << OE_DELTA_SIZE_BITS);
 }
 
 struct object_entry *packlist_alloc(struct packing_data *pdata,
@@ -160,6 +179,8 @@ struct object_entry *packlist_alloc(struct packing_data *pdata,
 
 		if (!pdata->in_pack_by_idx)
 			REALLOC_ARRAY(pdata->in_pack, pdata->nr_alloc);
+		if (pdata->delta_size)
+			REALLOC_ARRAY(pdata->delta_size, pdata->nr_alloc);
 	}
 
 	new_entry = pdata->objects + pdata->nr_objects++;
